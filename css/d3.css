@@ -1,0 +1,16 @@
+
+svg rect{
+	fill:#ccc;
+	stroke:gray;
+	stroke-width:2px;
+}
+
+.node {
+    fill: #000;
+    font-size:20px;
+}
+
+.link {
+    stroke: #777;
+    stroke-width: 2px;
+}

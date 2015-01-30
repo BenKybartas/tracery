@@ -15,7 +15,7 @@ var treeViz = function() {
             this.nodes = nodes;
             this.edges = edges;
             this.maxdepth = 0;
-            this.roots = [];
+            this.root_node = null;
 
             this.getNodePosition = function(plainText){
                 for (var i = 0; i < this.nodes.length; i++){
@@ -104,6 +104,11 @@ var treeViz = function() {
             //our Temporal StoryTree (a directed acyclic graph technically)
             var temp_tree = new this.storyTree([], []);
             
+            //Make the root node
+            var rootnode = new this.storyNode(null, "", -1);
+            temp_tree.root_node = rootnode;
+            temp_tree.nodes.push(rootnode);
+
             //Used for linking trees
             var prev_node = null;
 
@@ -121,7 +126,7 @@ var treeViz = function() {
                 prev_node = null;
 
                 if (stories[i].length > temp_tree.maxdepth){
-                    temp_tree.maxdepth = stories[i].length;
+                    temp_tree.maxdepth = stories[i].length - 1;
                 };
 
                 for (var j = 0; j < stories[i].length; j++){
@@ -132,22 +137,24 @@ var treeViz = function() {
                         temp_tree.nodes.push(new_node);
 
                         if (prev_node === null){
-                            temp_tree.roots.push(temp_tree.nodes.length - 1);
-                        };
-                    }
+                            temp_tree.linkNodesPosition(temp_tree.root_node, new_node);
+                        }
+                    };
 
                     //Link the nodes
                     if (!(prev_node === null)){
                         temp_tree.linkNodesPosition(prev_node, new_node);
                     };
-                    //Set previous node to new node
+
                     prev_node = new_node;
-                }
+                };
             };
             
             //this.consoleLogEdges(temp_tree);
-            //this.renderTree(temp_tree, "#tree");
+            //this.processTree(temp_tree);
+            //this.renderTree(temp_tree);
             this.renderFixedTree(temp_tree);
+            
         },
         
         consoleLogEdges: function(s_tree){
@@ -157,14 +164,65 @@ var treeViz = function() {
             };
         },
 
+        /*
+        processTree: function(story_tree){
+
+            var processed_tree = new this.storyTree([], []);
+
+            //Make the root node
+            var rootnode = new this.storyNode(null, "", -1);
+            processed_tree.root_node = rootnode;
+            processed_tree.nodes.push(rootnode);
+            
+            
+            var patterns = [];
+            var next_nodes = [];
+
+            var gotoDepth = function(node, result, depth, maxdepth){
+                if (depth >= maxdepth){
+                    patterns.push(result);
+                } else {
+                    depth += 1;
+                    for (var i in node.children){
+                        var child_node = story_tree.nodes[node.children[i]];
+                        gotoDepth(child_node, result + "_" + node.children[i], depth, maxdepth);
+                    }
+                }
+            };
+            
+            var sortPatterns = function(patterns){
+                
+                var next_nodes = [];
+                for (var i in patterns){
+                    for (var j in patterns){
+                        if (i !== j){
+                            var pat1 = patterns[i].split("_");
+                            var pat2 = patterns[j].split("_");
+
+                            if (pat1[1] === pat2[1] && pat1[3] === pat2[3]){
+                                next_nodes.push([pat1, pat2]);
+                            }
+                        }
+                    }
+                }
+                //Split the pattern by the "_"
+                return next_nodes;
+            };
+
+            gotoDepth(story_tree.root_node, "", 0, 3);
+            console.log(patterns);
+            console.log(sortPatterns(patterns));
+        },*/
+        
+
         /*Render a given story tree using our own
         algorithm (WIP)*/
         renderFixedTree: function(s_tree){
             
             var width = 1500;
-            var height = 1000;
-            var offset = 20;
-            var startTextSize = 50;
+            var height = 4000;
+            var offset = 5;
+            var minTextSize = 10;
 
             //Just slap an svg onto the body (TODO make this nice)
             var svg = d3.select('body').append('svg')
@@ -183,83 +241,122 @@ var treeViz = function() {
                 return false;
             };
 
-            var get_and_render_children = function(node, y_min, y_max, x_pos){
+            var get_nodes_at_position = function(position){
+
+                var nodes = [];
                 
+                for (var i in s_tree.nodes){
+                    if (s_tree.nodes[i].position === position){
+                        nodes.push(s_tree.nodes[i]);
+                    };
+                };
+
+                return nodes;
+            };
+
+            /*Get the max breadth*/
+            var max_breadth = 0;
+            for (var i = 0; i < s_tree.maxdepth + 1; i++){
+                var breadth_pos = get_nodes_at_position(i).length;
+                if ( breadth_pos > max_breadth){
+                    max_breadth = breadth_pos;
+                }
+            };
+
+            //Set our default text based on the max breadth
+            var max_text_size = minTextSize * max_breadth;
+            var x_pos = offset;
+            var y_pos = width/2;
+
+            /*Now render*/
+            for (var i = 0; i < s_tree.maxdepth + 1; i++){
+
+                var nodes = get_nodes_at_position(i);
+                var cur_breadth = nodes.length;
+
+                var cur_y = y_pos;
+                var max_x = 0;
+
+                for (var j in nodes){
+
+                    var new_text = svg.append('text')
+                        .attr("class", nodes[j].node.parent.symbol)
+                        .attr("x", x_pos)
+                        .attr("y", cur_y)
+                        .attr("font-family", "serif")
+                        .attr("font-size", max_text_size/cur_breadth)
+                        .attr("fill", "black")
+                        .text(nodes[j].plainText);
+
+                    var x_diff = 0;
+                    var y_diff = 0;
+
+                    new_text.each(function(){
+                        x_diff = this.getBBox().width;
+                        y_diff = this.getBBox().width;
+                    });
+
+                    if (x_diff > max_x){
+                        max_x = x_diff;
+                    };
+
+                    cur_y -= y_diff;
+
+                };
+
+                x_pos = x_pos + max_x + offset;
+
+            };
+            /*
+            var get_and_render_children = function(node, y_min, y_max, x_pos, fontsize){
                 var next_nodes = [];
                 var y_inc = (y_max - y_min) / (node.children.length + 1);
-
-                var grouping = {};
+                var y_box_inc = (y_max - y_min) / node.children.length;
                 
-                /*Group our children for improved rendering*/
-                for (var i = 0; i < node.children.length; i++) {
+                var y_min_diff = y_min;
+
+                for (var i = 0; i < node.children.length; i++){
                     
                     var child_node = s_tree.nodes[node.children[i]];
+                    
+                    
+                    //var font_size = fontsize / node.children.length;
+                    y_min += y_inc;
+                    
+                    var new_text = svg.append('text')
+                        .attr("class", child_node.node.parent.symbol)
+                        .attr("x", x_pos)
+                        .attr("y", y_min)
+                        .attr("font-family", "serif")
+                        .attr("font-size", fontsize)
+                        .attr("fill", "black")
+                        .text(child_node.plainText);
 
-                    for (var j = 0; j < child_node.children.length; j++){
-                        if (!grouping.hasOwnProperty("_" + child_node.children[j])){
-                            grouping["_" + child_node.children[j]] = [i];
-                        } else {
-                            grouping["_" + child_node.children[j]].push(i);
-                        };
-                    };
-                };
+                    //var x_diff = new_text.getBBox().width;
+                    //new_text.attr("font-size", 20);
 
-                /*Now render the children in groups based on their children*/
-                for (var group in grouping){
-                    for (var group_id in grouping[group]){
+                    var x_diff = 0;
 
-                        var child_node = s_tree.nodes[node.children[grouping[group][group_id]]];
-                        y_min += y_inc;
+                    new_text.each(function(){
+                        x_diff = this.getBBox().width;
+                    });
 
-                        svg.append('text')
-                            .attr("class", child_node.node.parent.symbol)
-                            .attr("x", x_pos)
-                            .attr("y", y_min)
-                            .attr("font-family", "serif")
-                            .attr("font-size", startTextSize/node.children.length)
-                            .attr("fill", "black")
-                            .text(child_node.plainText);
+                    var y_max_diff = y_min_diff + y_box_inc;
+                    //console.log(y_max_diff);
+                    get_and_render_children(child_node, y_min_diff, y_max_diff, x_pos + x_diff + offset, fontsize);
 
-                        var x_diff = 0;
+                    y_min_diff = y_max_diff;
+                }
 
-                        svg.selectAll("text").each(function() {
-                            x_diff = this.getBBox().width;
-                        });                        
-
-                    };
-                };
             };
 
-            /*Set up root nodes*/
-            for (var i in s_tree.roots){
-                
-                y_loc += height/(s_tree.roots.length + 1);
-
-                svg.append('text')
-                    .attr("class", s_tree.nodes[s_tree.roots[i]].node.parent.symbol)
-                    .attr("x", x_loc)
-                    .attr("y", y_loc)
-                    .attr("font-family", "serif")
-                    .attr("font-size", startTextSize)
-                    .attr("fill", "black")
-                    .text(s_tree.nodes[s_tree.roots[i]].plainText);
-
-                var last_width = 0;
-                var last_height = 0;
-
-                svg.selectAll("text").each(function() {
-                    last_width = this.getBBox().width;
-                    last_height = this.getBBox().height;
-                });
-
-                get_and_render_children(s_tree.nodes[s_tree.roots[i]], 0, height, x_loc + last_width);
-            };
-
+            //get_and_render_children(s_tree.root_node, 0, height, offset, startTextSize);
+            */
         },
 
         /*Render a given story tree (DAG) here we do
         some D3 magic!*/        
-        renderTree: function(s_tree, element){
+        renderTree: function(s_tree){
 
             var width = 1500;
             var height = 1000;
@@ -312,7 +409,7 @@ var treeViz = function() {
                 .attr('class', 'node')
                 .text( function(d) { return d.plainText })
                 .attr('x', function(d) { return (d.position * x_inc) + offset});
-
+            
             var link = svg.selectAll('.link')
                 .data(links)
                 .enter().append('line')
@@ -320,7 +417,12 @@ var treeViz = function() {
                 .attr('marker-end', "url(#triangle)")
                 .attr('x1', function(d) {return (nodes[d.source].position * x_inc) + offset;})
                 .attr('x2', function(d) {return (nodes[d.target].position * x_inc) + offset;});
-
+            
+            /*var link = svg.selectAll('.link')
+                .data(links)
+                .enter().append('text')
+                .attr('class', 'link')
+                .text('ben');*/
             /*
             var node = svg.selectAll('.node')
                 .data(nodes)

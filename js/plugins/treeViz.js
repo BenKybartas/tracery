@@ -220,9 +220,9 @@ var treeViz = function() {
         renderFixedTree: function(s_tree){
             
             var width = 1500;
-            var height = 4000;
+            var height = 500;
             var offset = 5;
-            var minTextSize = 10;
+            var minTextSize = 20;
 
             //Just slap an svg onto the body (TODO make this nice)
             var svg = d3.select('body').append('svg')
@@ -266,8 +266,9 @@ var treeViz = function() {
             //Set our default text based on the max breadth
             var max_text_size = minTextSize * max_breadth;
             var x_pos = offset;
-            var y_pos = width/2;
-
+            var y_pos = height/2;
+            
+            var furthest_x = 0;
             /*Now render*/
             for (var i = 0; i < s_tree.maxdepth + 1; i++){
 
@@ -285,7 +286,7 @@ var treeViz = function() {
                         .attr("y", cur_y)
                         .attr("font-family", "serif")
                         .attr("font-size", max_text_size/cur_breadth)
-                        .attr("fill", "black")
+                        //.attr("fill", "black")
                         .text(nodes[j].plainText);
 
                     var x_diff = 0;
@@ -293,13 +294,16 @@ var treeViz = function() {
 
                     new_text.each(function(){
                         x_diff = this.getBBox().width;
-                        y_diff = this.getBBox().width;
+                        y_diff = this.getBBox().height;
                     });
 
                     if (x_diff > max_x){
                         max_x = x_diff;
                     };
 
+                    if (x_diff + x_pos > furthest_x){
+                        furthest_x = x_diff + x_pos;
+                    }
                     cur_y -= y_diff;
 
                 };
@@ -307,6 +311,14 @@ var treeViz = function() {
                 x_pos = x_pos + max_x + offset;
 
             };
+
+            //Resize the svg (a bit hacky right now)
+            var new_x = 0;
+            new_text.each(function(){
+                new_x = parseInt(new_text.attr('x')) + this.getBBox().width;
+            });
+
+            svg.attr('width', furthest_x);
             /*
             var get_and_render_children = function(node, y_min, y_max, x_pos, fontsize){
                 var next_nodes = [];

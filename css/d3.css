@@ -5,12 +5,23 @@ svg rect{
 	stroke-width:2px;
 }
 
+.line_ {
+	stroke:#000;
+}
+.symbol_box.origin{
+	fill:#fff;
+	opacity: 1;
+}
+
+.symbol_box.end{
+	fill:#000;
+	opacity: 1;
+}
+
+.pushpop_box{
+	fill:#f1f;
+}
 .node {
     fill: #000;
     font-size:20px;
-}
-
-.link {
-    stroke: #777;
-    stroke-width: 2px;
 }
